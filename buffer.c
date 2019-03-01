@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include <pthread.h>
 
 /* in bytes */
@@ -34,6 +35,51 @@ void print_usage() {
  * @return 0 on success, 1 on failure.
  */
 int parse_size(const char *str, size_t *size) {
+    size_t value;
+    char unit[4] = {0};
+
+    // todo: check integer overflow
+    // todo: check trailing characters
+    if (sscanf(str, "%zu%3s", &value, unit) != 2) {
+        fprintf(stderr, "Error: Invalid buffer size.\n");
+        return 1;
+    }
+
+    if (value == 0) {
+        fprintf(stderr, "Error: Buffer size must be a non-zero integer.\n");
+        return 1;
+    }
+
+    /* unit coefficient */
+    long coef;
+
+    if (strcmp("B", unit) == 0) {
+        coef = 1;
+    } else if (strcmp("KB", unit) == 0) {
+        coef = 1000;
+    } else if (strcmp("MB", unit) == 0) {
+        coef = (long)1 * 1000*1000;
+    } else if (strcmp("GB", unit) == 0) {
+        coef = (long)1 * 1000*1000*1000;
+    } else if (strcmp("KiB", unit) == 0) {
+        coef = 1024;
+    } else if (strcmp("MiB", unit) == 0) {
+        coef = (long)1 * 1024*1024;
+    } else if (strcmp("GiB", unit) == 0) {
+        coef = (long)1 * 1024*1024*1024;
+    } else {
+        fprintf(stderr, "Error: Invalid unit. Must be one of: B, KB, MB, GB, KiB, MiB, GiB\n");
+        return 1;
+    }
+
+    /* unit coefficient doesn't fit to size_t OR provided value (unit applied) doesn't fit to size_t */
+    if ((size_t)coef < coef || value > SIZE_MAX / coef) {
+        fprintf(stderr, "Error: Buffer size is too high.\n");
+        return 1;
+    }
+
+    *size = value * coef;
+    return 0;
 }
 
 /**
